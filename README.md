@@ -438,7 +438,7 @@ if emergency_bci.detect_distress(neural_pattern):
 ```bibtex
 @article{bci_agent_bridge2025,
   title={BCI-Agent-Bridge: Privacy-Preserving Neural-to-Language Translation via Large Language Models},
-  author={Your Name et al.},
+  author={Daniel Schmidt},
   journal={Nature Biomedical Engineering},
   year={2025},
   doi={10.1038/s41551-025-XXXXX}
