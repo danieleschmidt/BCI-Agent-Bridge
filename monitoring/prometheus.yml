@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  - job_name: 'bci-bridge'
+    static_configs:
+      - targets: ['bci-bridge:8000']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 10s
+    
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 10s
+    
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Clinical monitoring specific rules
+rule_files:
+  - "clinical_rules.yml"

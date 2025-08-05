@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  bci-bridge:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: bci-agent-bridge
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - BCI_DEVICE=${BCI_DEVICE:-Simulation}
+      - BCI_CHANNELS=${BCI_CHANNELS:-8}
+      - BCI_SAMPLING_RATE=${BCI_SAMPLING_RATE:-250}
+      - BCI_PARADIGM=${BCI_PARADIGM:-P300}
+      - PRIVACY_EPSILON=${PRIVACY_EPSILON:-1.0}
+      - PRIVACY_DELTA=${PRIVACY_DELTA:-1e-5}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./clinical_data:/app/clinical_data
+    ports:
+      - "8000:8000"  # API port
+      - "8080:8080"  # WebSocket port
+    networks:
+      - bci-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import bci_agent_bridge; print('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: bci-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - bci-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: bci-postgres
+    environment:
+      - POSTGRES_DB=bci_database
+      - POSTGRES_USER=bci_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - bci-network
+    restart: unless-stopped
+
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: bci-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - bci-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: bci-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - bci-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  bci-network:
+    driver: bridge

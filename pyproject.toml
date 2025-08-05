@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bci-agent-bridge"
+version = "0.1.0"
+description = "Real-time Brain-Computer Interface to LLM bridge"
+authors = [{name = "Daniel Schmidt", email = "daniel@terraganlabs.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.21.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    "mne>=1.0.0",
+    "anthropic>=0.18.0",
+    "asyncio-mqtt>=0.11.0",
+    "cryptography>=3.0.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "websockets>=10.0",
+    "h5py>=3.0.0",
+    "matplotlib>=3.5.0",
+    "seaborn>=0.11.0",
+    "tqdm>=4.60.0",
+    "python-dotenv>=0.19.0",
+]
+
+[project.optional-dependencies]
+hardware = [
+    "pyserial>=3.5",
+    "brainflow>=5.0.0",
+    "psychopy>=2023.1.0",
+    "pygame>=2.1.0",
+]
+clinical = [
+    "pydicom>=2.3.0",
+    "nibabel>=4.0.0",
+    "pandas>=1.5.0",
+    "openpyxl>=3.0.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=2.20.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/danieleschmidt/quantum-inspired-task-planner"
+Documentation = "https://bci-agent-bridge.readthedocs.io"
+Repository = "https://github.com/danieleschmidt/quantum-inspired-task-planner"
+Issues = "https://github.com/danieleschmidt/quantum-inspired-task-planner/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=bci_agent_bridge",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-report=html",
+]
