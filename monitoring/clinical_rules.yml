@@ -1,0 +1,62 @@
+groups:
+  - name: bci_clinical_alerts
+    rules:
+      - alert: HighLatencyDetected
+        expr: bci_processing_latency_ms > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "BCI processing latency is high"
+          description: "Processing latency has been above 100ms for more than 5 minutes"
+          
+      - alert: LowSignalQuality
+        expr: bci_signal_quality_score < 0.7
+        for: 2m
+        labels:
+          severity: critical
+          category: data_quality
+        annotations:
+          summary: "Low BCI signal quality detected"
+          description: "Signal quality score has dropped below 0.7"
+          
+      - alert: PrivacyBudgetExhausted
+        expr: bci_privacy_budget_remaining < 0.1
+        for: 1m
+        labels:
+          severity: critical
+          category: privacy
+        annotations:
+          summary: "Privacy budget nearly exhausted"
+          description: "Less than 10% of privacy budget remaining"
+          
+      - alert: AdverseEventDetected
+        expr: increase(bci_adverse_events_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: safety
+        annotations:
+          summary: "Adverse event detected in clinical session"
+          description: "An adverse event has been reported during BCI session"
+          
+      - alert: SystemResourcesHigh
+        expr: (rate(container_cpu_usage_seconds_total[5m]) * 100) > 80
+        for: 3m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage has been above 80% for more than 3 minutes"
+          
+      - alert: MemoryUsageHigh
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 85
+        for: 3m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage has been above 85% for more than 3 minutes"
