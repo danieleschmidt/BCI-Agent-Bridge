@@ -16,6 +16,9 @@ from .decoders.motor_imagery import MotorImageryDecoder
 from .decoders.ssvep import SSVEPDecoder
 from .privacy.differential_privacy import DifferentialPrivacy
 from .clinical.trial_manager import ClinicalTrialManager
+from .monitoring.health_monitor import HealthMonitor
+from .monitoring.metrics_collector import MetricsCollector, BCIMetricsCollector
+from .monitoring.alert_manager import AlertManager
 
 __all__ = [
     "BCIBridge",
@@ -25,4 +28,8 @@ __all__ = [
     "SSVEPDecoder",
     "DifferentialPrivacy",
     "ClinicalTrialManager",
+    "HealthMonitor",
+    "MetricsCollector",
+    "BCIMetricsCollector",
+    "AlertManager",
 ]
