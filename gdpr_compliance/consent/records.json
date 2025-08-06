@@ -1,0 +1,14 @@
+{
+  "patient_001": [
+    {
+      "user_id": "patient_001",
+      "consent_type": "necessary",
+      "granted": true,
+      "timestamp": 1754449314.5562282,
+      "ip_address": null,
+      "user_agent": null,
+      "consent_text": null,
+      "withdrawal_timestamp": null
+    }
+  ]
+}

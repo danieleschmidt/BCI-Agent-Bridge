@@ -1,0 +1,18 @@
+{
+  "audit_id": "908dc10a-cd92-4760-833f-4d5dab3fe4d7",
+  "timestamp": 1754449314.5694804,
+  "action": "user_authorized",
+  "user_id": "doctor_001",
+  "details": {
+    "authorization_id": "c4c6cb03-805d-49f0-a2d5-3b3bad39670f",
+    "role": "physician",
+    "phi_access_levels": [
+      "neural_data"
+    ],
+    "authorized_by": "chief_medical_officer"
+  },
+  "system_info": {
+    "covered_entity": "Test Medical Center",
+    "component": "BCI-Agent-Bridge"
+  }
+}
