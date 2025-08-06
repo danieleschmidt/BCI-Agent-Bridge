@@ -1,0 +1,1 @@
+{"event_id": "6ddb3d9a-2b97-4fa2-8219-0d1df39db5ba", "timestamp": 1754449314.8917906, "event_type": "data_access", "severity": "info", "user_id": null, "session_id": null, "source_component": "bci-agent-bridge", "action": "test_access", "resource": null, "outcome": "success", "details": {}, "ip_address": null, "user_agent": null, "correlation_id": null}
