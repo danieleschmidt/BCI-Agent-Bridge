@@ -24,9 +24,28 @@ from .decoders.p300 import P300Decoder
 from .decoders.motor_imagery import MotorImageryDecoder
 from .decoders.ssvep import SSVEPDecoder
 
-# Advanced research decoders
-from .decoders.transformer_decoder import TransformerNeuralDecoder, TransformerConfig
-from .decoders.hybrid_decoder import HybridMultiParadigmDecoder, HybridConfig
+# Advanced research decoders (optional imports)
+try:
+    from .decoders.transformer_decoder import TransformerNeuralDecoder, TransformerConfig
+    from .decoders.hybrid_decoder import HybridMultiParadigmDecoder, HybridConfig
+    _ADVANCED_DECODERS_AVAILABLE = True
+except ImportError:
+    # Define stubs for missing decoders
+    class TransformerNeuralDecoder:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("TransformerNeuralDecoder requires PyTorch. Install with: pip install torch")
+    
+    class TransformerConfig:
+        pass
+        
+    class HybridMultiParadigmDecoder:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("HybridMultiParadigmDecoder requires PyTorch. Install with: pip install torch")
+    
+    class HybridConfig:
+        pass
+        
+    _ADVANCED_DECODERS_AVAILABLE = False
 
 # Privacy and compliance
 from .privacy.differential_privacy import DifferentialPrivacy

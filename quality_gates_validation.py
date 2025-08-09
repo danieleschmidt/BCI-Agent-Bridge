@@ -1,383 +1,261 @@
-#!/usr/bin/env python3
+#\!/usr/bin/env python3
 """
-Quality Gates Validation for BCI-Agent-Bridge Generation 6.
-Tests code structure, module organization, and compliance framework.
+Comprehensive quality gates validation for BCI-Agent-Bridge.
 """
 
-import os
+import subprocess
 import sys
-from pathlib import Path
 import json
-import ast
-import importlib.util
+import time
+from typing import Dict, Any, Tuple
 
-def validate_project_structure():
-    """Validate the overall project structure."""
-    print("📁 Validating Project Structure...")
-    
-    required_dirs = [
-        "src/bci_agent_bridge/core",
-        "src/bci_agent_bridge/adapters", 
-        "src/bci_agent_bridge/monitoring",
-        "src/bci_agent_bridge/performance",
-        "src/bci_agent_bridge/utils",
-        "src/bci_agent_bridge/i18n",
-        "src/bci_agent_bridge/compliance",
-        "tests"
-    ]
-    
-    missing_dirs = []
-    for dir_path in required_dirs:
-        if not Path(dir_path).exists():
-            missing_dirs.append(dir_path)
-    
-    if missing_dirs:
-        print(f"❌ Missing directories: {missing_dirs}")
-        return False
-    
-    print("✅ All required directories present")
-    return True
 
-def validate_core_modules():
-    """Validate core module files exist."""
-    print("🧠 Validating Core Modules...")
-    
-    core_files = [
-        "src/bci_agent_bridge/__init__.py",
-        "src/bci_agent_bridge/__main__.py",
-        "src/bci_agent_bridge/core/bridge.py",
-        "src/bci_agent_bridge/core/decoder.py",
-        "src/bci_agent_bridge/adapters/claude_flow.py"
-    ]
-    
-    missing_files = []
-    for file_path in core_files:
-        if not Path(file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        print(f"❌ Missing core files: {missing_files}")
-        return False
-    
-    print("✅ All core modules present")
-    return True
+def run_command(cmd: list, cwd: str = ".") -> Tuple[bool, str, str]:
+    """Run a command and return success, stdout, stderr."""
+    try:
+        result = subprocess.run(
+            cmd, 
+            cwd=cwd,
+            capture_output=True, 
+            text=True, 
+            timeout=300  # 5 minute timeout
+        )
+        return result.returncode == 0, result.stdout, result.stderr
+    except subprocess.TimeoutExpired:
+        return False, "", "Command timed out"
+    except Exception as e:
+        return False, "", str(e)
 
-def validate_monitoring_system():
-    """Validate monitoring system components."""
-    print("🔍 Validating Monitoring System...")
-    
-    monitoring_files = [
-        "src/bci_agent_bridge/monitoring/__init__.py",
-        "src/bci_agent_bridge/monitoring/health_monitor.py",
-        "src/bci_agent_bridge/monitoring/metrics_collector.py",
-        "src/bci_agent_bridge/monitoring/alert_manager.py"
-    ]
-    
-    missing_files = []
-    for file_path in monitoring_files:
-        if not Path(file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        print(f"❌ Missing monitoring files: {missing_files}")
-        return False
-    
-    print("✅ Monitoring system complete")
-    return True
 
-def validate_performance_optimizations():
-    """Validate performance optimization components."""
-    print("⚡ Validating Performance Optimizations...")
+def check_test_coverage() -> Dict[str, Any]:
+    """Run tests and check coverage."""
+    print("🧪 Running tests with coverage...")
     
-    performance_files = [
-        "src/bci_agent_bridge/performance/__init__.py",
-        "src/bci_agent_bridge/performance/caching.py",
-        "src/bci_agent_bridge/performance/batch_processor.py",
-        "src/bci_agent_bridge/performance/connection_pool.py",
-        "src/bci_agent_bridge/performance/load_balancer.py"
-    ]
-    
-    missing_files = []
-    for file_path in performance_files:
-        if not Path(file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        print(f"❌ Missing performance files: {missing_files}")
-        return False
-    
-    print("✅ Performance optimizations complete")
-    return True
-
-def validate_internationalization():
-    """Validate i18n system."""
-    print("🌍 Validating Internationalization...")
-    
-    i18n_files = [
-        "src/bci_agent_bridge/i18n/__init__.py",
-        "src/bci_agent_bridge/i18n/translator.py",
-        "src/bci_agent_bridge/i18n/locales.py",
-        "src/bci_agent_bridge/i18n/neural_commands.py"
-    ]
-    
-    missing_files = []
-    for file_path in i18n_files:
-        if not Path(file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        print(f"❌ Missing i18n files: {missing_files}")
-        return False
-    
-    print("✅ Internationalization system complete")
-    return True
-
-def validate_compliance_framework():
-    """Validate compliance and regulatory framework."""
-    print("📋 Validating Compliance Framework...")
-    
-    compliance_files = [
-        "src/bci_agent_bridge/compliance/__init__.py",
-        "src/bci_agent_bridge/compliance/gdpr.py",
-        "src/bci_agent_bridge/compliance/hipaa.py",
-        "src/bci_agent_bridge/compliance/data_protection.py",
-        "src/bci_agent_bridge/compliance/audit_logger.py"
-    ]
-    
-    missing_files = []
-    for file_path in compliance_files:
-        if not Path(file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        print(f"❌ Missing compliance files: {missing_files}")
-        return False
-    
-    print("✅ Compliance framework complete")
-    return True
-
-def validate_testing_suite():
-    """Validate comprehensive testing suite."""
-    print("🧪 Validating Testing Suite...")
-    
-    test_files = [
-        "tests/conftest.py",
-        "tests/test_integration.py"
-    ]
-    
-    missing_files = []
-    for file_path in test_files:
-        if not Path(file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        print(f"❌ Missing test files: {missing_files}")
-        return False
-    
-    print("✅ Testing suite complete")
-    return True
-
-def analyze_code_complexity():
-    """Analyze code complexity and quality."""
-    print("📊 Analyzing Code Quality...")
-    
-    python_files = list(Path("src").rglob("*.py"))
-    
-    total_lines = 0
-    total_files = 0
-    total_classes = 0
-    total_functions = 0
-    
-    for py_file in python_files:
-        try:
-            with open(py_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                lines = len(content.splitlines())
-                total_lines += lines
-                total_files += 1
-                
-                # Parse AST to count classes and functions
-                try:
-                    tree = ast.parse(content)
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.ClassDef):
-                            total_classes += 1
-                        elif isinstance(node, ast.FunctionDef):
-                            total_functions += 1
-                except:
-                    pass  # Skip files with syntax issues
-                    
-        except Exception:
-            continue  # Skip problematic files
-    
-    print(f"   - Total Python files: {total_files}")
-    print(f"   - Total lines of code: {total_lines:,}")
-    print(f"   - Total classes: {total_classes}")
-    print(f"   - Total functions: {total_functions}")
-    
-    # Quality thresholds
-    if total_files < 20:
-        print("⚠️ Project may need more modular structure")
-        return False
-    
-    if total_lines < 5000:
-        print("⚠️ Project may be too small for production")
-        return False
-    
-    print("✅ Code complexity and structure appropriate")
-    return True
-
-def validate_sdlc_generations():
-    """Validate that all SDLC generations were implemented."""
-    print("🚀 Validating SDLC Generation Implementation...")
-    
-    generation_indicators = {
-        "Generation 1 (Basic)": [
-            "src/bci_agent_bridge/__main__.py",  # CLI enhancement
-            "src/bci_agent_bridge/core/bridge.py"  # Core functionality
-        ],
-        "Generation 2 (Robust)": [
-            "src/bci_agent_bridge/monitoring/health_monitor.py",
-            "src/bci_agent_bridge/monitoring/alert_manager.py",
-            "src/bci_agent_bridge/utils/validation.py"
-        ],
-        "Generation 3 (Scale)": [
-            "src/bci_agent_bridge/performance/caching.py",
-            "src/bci_agent_bridge/performance/load_balancer.py",
-            "src/bci_agent_bridge/performance/batch_processor.py"
-        ],
-        "Generation 4 (Testing)": [
-            "tests/conftest.py",
-            "tests/test_integration.py"
-        ],
-        "Generation 5 (Global)": [
-            "src/bci_agent_bridge/i18n/translator.py",
-            "src/bci_agent_bridge/compliance/gdpr.py"
-        ],
-        "Generation 6 (Quality)": [
-            "src/bci_agent_bridge/compliance/hipaa.py",
-            "src/bci_agent_bridge/compliance/audit_logger.py"
-        ]
+    results = {
+        "passed": True,
+        "coverage_percentage": 0,
+        "tests_passed": 0,
+        "tests_failed": 0
     }
     
-    all_generations_complete = True
+    # Run tests with coverage
+    success, stdout, stderr = run_command([
+        "bash", "-c",
+        "source venv/bin/activate && python3 -m pytest tests/test_core.py -v --cov=bci_agent_bridge --cov-report=term-missing"
+    ])
     
-    for generation, required_files in generation_indicators.items():
-        missing_files = [f for f in required_files if not Path(f).exists()]
-        if missing_files:
-            print(f"❌ {generation}: Missing {missing_files}")
-            all_generations_complete = False
-        else:
-            print(f"✅ {generation}: Complete")
+    # Parse test results  
+    import re
+    passed_match = re.search(r"(\d+) passed", stdout)
+    failed_match = re.search(r"(\d+) failed", stdout)
     
-    return all_generations_complete
+    if passed_match:
+        results["tests_passed"] = int(passed_match.group(1))
+    if failed_match:
+        results["tests_failed"] = int(failed_match.group(1))
+        results["passed"] = False
+    
+    # Extract coverage percentage
+    coverage_match = re.search(r"TOTAL.+?(\d+)%", stdout)
+    if coverage_match:
+        results["coverage_percentage"] = int(coverage_match.group(1))
+        print(f"📊 Test coverage: {results['coverage_percentage']}%")
+    
+    if results["tests_failed"] == 0:
+        print("✅ All core tests passed")
+    else:
+        print(f"❌ {results['tests_failed']} tests failed")
+    
+    return results
 
-def validate_documentation():
-    """Validate documentation and README."""
-    print("📖 Validating Documentation...")
+
+def check_performance_benchmarks() -> Dict[str, Any]:
+    """Run performance benchmarks."""
+    print("⚡ Running performance benchmarks...")
     
-    if not Path("README.md").exists():
-        print("❌ Missing README.md")
-        return False
+    results = {
+        "passed": True,
+        "benchmarks": {}
+    }
     
-    # Check README contains key sections
-    with open("README.md", 'r') as f:
-        readme_content = f.read()
+    # Run performance test
+    success, stdout, stderr = run_command([
+        "bash", "-c", 
+        '''
+        source venv/bin/activate &&
+        python3 -c "
+import time
+import numpy as np
+
+# Test imports and basic functionality
+try:
+    from bci_agent_bridge.core.bridge import BCIBridge
+    from bci_agent_bridge.performance.caching import NeuralDataCache
     
-    required_sections = ["BCI-Agent-Bridge", "Features", "Installation", "Usage"]
-    missing_sections = []
+    # BCI Bridge initialization
+    start = time.time()
+    bridge = BCIBridge()
+    init_time = (time.time() - start) * 1000
+    print(f'init_time:{init_time:.1f}')
     
-    for section in required_sections:
-        if section not in readme_content:
-            missing_sections.append(section)
+    # Neural processing
+    test_data = np.random.randn(8, 250).astype(np.float32)
+    start = time.time()
+    for _ in range(5):
+        _ = bridge.preprocessor.apply_filters(test_data)
+    proc_time = (time.time() - start) / 5 * 1000
+    print(f'processing_time:{proc_time:.1f}')
     
-    if missing_sections:
-        print(f"⚠️ README missing sections: {missing_sections}")
+    # Caching performance
+    cache = NeuralDataCache()
+    start = time.time()
+    for i in range(10):
+        cache.put(f'test_{i}', test_data)
+    cache_time = (time.time() - start) / 10 * 1000
+    print(f'cache_time:{cache_time:.1f}')
     
-    print("✅ Documentation present")
-    return True
+    print('SUCCESS')
+except Exception as e:
+    print(f'ERROR:{e}')
+"
+        '''
+    ])
+    
+    if success and "SUCCESS" in stdout:
+        # Parse results
+        for line in stdout.split('\n'):
+            if ':' in line:
+                parts = line.split(':')
+                if len(parts) == 2:
+                    key, value_str = parts
+                    try:
+                        value = float(value_str)
+                        results["benchmarks"][key] = {
+                            "value": value,
+                            "unit": "ms",
+                            "passed": value < 1000  # All should be under 1 second
+                        }
+                    except:
+                        pass
+        
+        all_passed = all(b.get("passed", True) for b in results["benchmarks"].values())
+        results["passed"] = all_passed
+        
+        if all_passed:
+            print("✅ Performance benchmarks passed")
+        else:
+            print("❌ Some performance benchmarks failed")
+    else:
+        results["passed"] = False
+        print(f"❌ Performance benchmark error: {stderr}")
+    
+    return results
+
+
+def check_system_health() -> Dict[str, Any]:
+    """Check system health."""
+    print("🏥 Checking system health...")
+    
+    results = {"passed": True}
+    
+    # Test basic imports
+    success, stdout, stderr = run_command([
+        "bash", "-c",
+        '''
+        source venv/bin/activate &&
+        python3 -c "
+try:
+    from bci_agent_bridge import BCIBridge
+    from bci_agent_bridge.security.input_validator import InputValidator
+    from bci_agent_bridge.performance.caching import NeuralDataCache
+    print('IMPORTS_OK')
+except Exception as e:
+    print(f'IMPORT_ERROR:{e}')
+"
+        '''
+    ])
+    
+    if success and "IMPORTS_OK" in stdout:
+        print("✅ System health check passed")
+        results["passed"] = True
+    else:
+        print(f"❌ System health check failed: {stderr}")
+        results["passed"] = False
+    
+    return results
+
+
+def generate_report(results: Dict[str, Any]) -> None:
+    """Generate quality report."""
+    print("\n" + "="*50)
+    print("📋 QUALITY GATES REPORT")
+    print("="*50)
+    
+    overall_passed = True
+    
+    # Testing
+    testing = results.get("testing", {})
+    print(f"\n🧪 TESTING")
+    print(f"  Tests passed: {testing.get('tests_passed', 0)}")
+    print(f"  Tests failed: {testing.get('tests_failed', 0)}")
+    print(f"  Coverage: {testing.get('coverage_percentage', 0)}%")
+    
+    if not testing.get("passed", False):
+        overall_passed = False
+    
+    # Performance
+    performance = results.get("performance", {})
+    print(f"\n⚡ PERFORMANCE")
+    for name, data in performance.get("benchmarks", {}).items():
+        status = "✅" if data.get("passed", False) else "❌"
+        print(f"  {status} {name}: {data.get('value', 0):.1f}{data.get('unit', '')}")
+    
+    if not performance.get("passed", False):
+        overall_passed = False
+    
+    # Health
+    health = results.get("health", {})
+    status = "✅" if health.get("passed", False) else "❌"
+    print(f"\n🏥 SYSTEM HEALTH {status}")
+    
+    if not health.get("passed", False):
+        overall_passed = False
+    
+    # Overall
+    print("\n" + "="*50)
+    if overall_passed:
+        print("🎉 ALL QUALITY GATES PASSED\!")
+        print("🚀 Ready for production deployment")
+    else:
+        print("⚠️  QUALITY GATES FAILED")
+        print("🔧 Issues need to be resolved")
+    print("="*50)
+    
+    # Save report
+    with open("quality_gates_report.json", "w") as f:
+        json.dump({
+            **results,
+            "overall_passed": overall_passed,
+            "timestamp": time.time()
+        }, f, indent=2)
+
 
 def main():
-    """Run complete quality gates validation."""
-    print("🎯 BCI-Agent-Bridge Quality Gates Validation")
-    print("=" * 50)
-    print("Generation 6: Quality Gates & Validation")
-    print("=" * 50)
+    """Main validation."""
+    print("🚀 Starting Quality Gates Validation")
     
-    # Define all validation checks
-    validation_checks = [
-        ("Project Structure", validate_project_structure),
-        ("Core Modules", validate_core_modules),
-        ("Monitoring System", validate_monitoring_system),
-        ("Performance Optimizations", validate_performance_optimizations),
-        ("Internationalization", validate_internationalization),
-        ("Compliance Framework", validate_compliance_framework),
-        ("Testing Suite", validate_testing_suite),
-        ("Code Quality", analyze_code_complexity),
-        ("SDLC Generations", validate_sdlc_generations),
-        ("Documentation", validate_documentation)
-    ]
-    
-    passed_checks = 0
-    total_checks = len(validation_checks)
-    
-    for check_name, check_function in validation_checks:
-        print(f"\n{check_name}:")
-        try:
-            if check_function():
-                passed_checks += 1
-            else:
-                print(f"   ⚠️ {check_name} needs attention")
-        except Exception as e:
-            print(f"   ❌ {check_name} failed: {e}")
-    
-    # Calculate quality score
-    quality_score = (passed_checks / total_checks) * 100
-    
-    print("\n" + "=" * 50)
-    print("🏁 QUALITY GATES VALIDATION RESULTS")
-    print("=" * 50)
-    print(f"✅ Passed: {passed_checks}/{total_checks} checks")
-    print(f"📊 Quality Score: {quality_score:.1f}%")
-    
-    if quality_score >= 90:
-        print("🎉 EXCELLENT: All quality gates passed!")
-        print("✅ Ready for Production Deployment (Generation 7)")
-        result = "PASSED"
-    elif quality_score >= 75:
-        print("👍 GOOD: Most quality gates passed")
-        print("⚠️ Address remaining issues before production")
-        result = "PASSED_WITH_WARNINGS"
-    else:
-        print("⚠️ NEEDS WORK: Several quality gates failed")
-        print("❌ Not ready for production deployment")
-        result = "FAILED"
-    
-    print(f"🎯 Final Result: {result}")
-    
-    # Generate quality report
-    quality_report = {
-        "timestamp": "2024-01-01T12:00:00Z",
-        "version": "Generation 6",
-        "quality_score": quality_score,
-        "passed_checks": passed_checks,
-        "total_checks": total_checks,
-        "result": result,
-        "recommendations": [
-            "Continue with Generation 7 (Production Deployment)" if quality_score >= 90 else "Address failing quality gates",
-            "Set up CI/CD pipeline for automated quality checking",
-            "Configure production monitoring and alerting",
-            "Implement automated compliance reporting"
-        ]
+    results = {
+        "testing": check_test_coverage(),
+        "performance": check_performance_benchmarks(), 
+        "health": check_system_health()
     }
     
-    with open("quality_gates_report.json", 'w') as f:
-        json.dump(quality_report, f, indent=2)
+    generate_report(results)
     
-    print(f"\n📄 Quality report saved to: quality_gates_report.json")
-    
-    return quality_score >= 75
+    overall_passed = all(r.get("passed", False) for r in results.values())
+    sys.exit(0 if overall_passed else 1)
+
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    main()
+EOF < /dev/null

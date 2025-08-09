@@ -11,8 +11,35 @@ from .base import BaseDecoder
 from .p300 import P300Decoder
 from .motor_imagery import MotorImageryDecoder
 from .ssvep import SSVEPDecoder
-from .transformer_decoder import TransformerNeuralDecoder, TransformerConfig
-from .hybrid_decoder import HybridMultiParadigmDecoder, HybridConfig, ParadigmType
+# Optional imports for advanced decoders that require PyTorch
+try:
+    from .transformer_decoder import TransformerNeuralDecoder, TransformerConfig
+    from .hybrid_decoder import HybridMultiParadigmDecoder, HybridConfig, ParadigmType
+    _ADVANCED_DECODERS_AVAILABLE = True
+except ImportError:
+    # PyTorch not available, skip advanced decoders
+    _ADVANCED_DECODERS_AVAILABLE = False
+    
+    # Define stub classes for compatibility
+    class TransformerNeuralDecoder:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("TransformerNeuralDecoder requires PyTorch. Install with: pip install torch")
+    
+    class TransformerConfig:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("TransformerConfig requires PyTorch. Install with: pip install torch")
+    
+    class HybridMultiParadigmDecoder:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("HybridMultiParadigmDecoder requires PyTorch. Install with: pip install torch")
+    
+    class HybridConfig:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("HybridConfig requires PyTorch. Install with: pip install torch")
+    
+    class ParadigmType:
+        def __init__(self, *args, **kwargs):
+            raise ImportError("ParadigmType requires PyTorch. Install with: pip install torch")
 
 __all__ = [
     # Base and classical decoders
