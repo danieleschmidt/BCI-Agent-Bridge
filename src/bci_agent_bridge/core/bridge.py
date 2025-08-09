@@ -13,6 +13,24 @@ from enum import Enum
 from ..signal_processing.preprocessing import SignalPreprocessor
 from ..decoders.base import BaseDecoder
 
+# Optional security imports
+try:
+    from ..security.input_validator import InputValidator, ValidationError, SecurityPolicy
+    from ..security.audit_logger import security_logger, SecurityEvent
+    _SECURITY_AVAILABLE = True
+except ImportError:
+    # Security module not available, use basic validation
+    _SECURITY_AVAILABLE = False
+    
+    class ValidationError(Exception):
+        pass
+    
+    class InputValidator:
+        def validate_neural_data(self, *args, **kwargs):
+            pass
+        def validate_string_input(self, text, field_name="input"):
+            return text
+
 
 class BCIDevice(Enum):
     OPENBCI = "OpenBCI"
@@ -61,21 +79,76 @@ class BCIBridge:
         buffer_size: int = 1000,
         privacy_mode: bool = True
     ):
-        self.device = BCIDevice(device)
-        self.channels = channels
-        self.sampling_rate = sampling_rate
-        self.paradigm = Paradigm(paradigm)
-        self.buffer_size = buffer_size
-        self.privacy_mode = privacy_mode
+        # Input validation with comprehensive error handling
+        try:
+            if not isinstance(channels, int) or channels <= 0 or channels > 256:
+                raise ValueError(f"Channels must be a positive integer ≤256, got {channels}")
+            if not isinstance(sampling_rate, int) or sampling_rate <= 0 or sampling_rate > 8000:
+                raise ValueError(f"Sampling rate must be positive integer ≤8000 Hz, got {sampling_rate}")
+            if not isinstance(buffer_size, int) or buffer_size <= 0 or buffer_size > 100000:
+                raise ValueError(f"Buffer size must be positive integer ≤100000, got {buffer_size}")
+            
+            self.device = BCIDevice(device)
+            self.channels = channels
+            self.sampling_rate = sampling_rate
+            self.paradigm = Paradigm(paradigm)
+            self.buffer_size = buffer_size
+            self.privacy_mode = privacy_mode
+            
+        except ValueError as e:
+            raise ValueError(f"Invalid BCIBridge configuration: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize BCIBridge: {e}")
         
         self.logger = logging.getLogger(__name__)
         self.is_streaming = False
         self.data_buffer = []
-        self.preprocessor = SignalPreprocessor(sampling_rate=sampling_rate)
-        self.decoder: Optional[BaseDecoder] = None
         
-        self._initialize_device()
-        self._setup_decoder()
+        # Initialize components with error handling
+        try:
+            # Initialize security validator
+            if _SECURITY_AVAILABLE:
+                security_policy = SecurityPolicy.CLINICAL if privacy_mode else SecurityPolicy.STANDARD
+                self.validator = InputValidator(security_policy)
+                security_logger.log_security_event(
+                    event_type=SecurityEvent.CONFIGURATION_CHANGE,
+                    resource="bci_bridge",
+                    action="initialize",
+                    details={
+                        "device": device,
+                        "channels": channels,
+                        "sampling_rate": sampling_rate,
+                        "paradigm": paradigm,
+                        "privacy_mode": privacy_mode
+                    },
+                    risk_score=2
+                )
+            else:
+                self.validator = InputValidator()
+            
+            self.preprocessor = SignalPreprocessor(sampling_rate=sampling_rate)
+            self.decoder: Optional[BaseDecoder] = None
+            
+            # Performance and health monitoring
+            self._total_samples_processed = 0
+            self._last_health_check = time.time()
+            self._error_count = 0
+            self._processing_times = []
+            
+            self._initialize_device()
+            self._setup_decoder()
+            
+            self.logger.info(f"BCIBridge initialized: {device} with {channels}ch @ {sampling_rate}Hz, paradigm={paradigm}")
+            
+        except Exception as e:
+            if _SECURITY_AVAILABLE:
+                security_logger.log_system_error(
+                    component="bci_bridge",
+                    error_type="initialization_error",
+                    error_message=str(e)
+                )
+            self.logger.error(f"Failed to initialize BCI components: {e}")
+            raise RuntimeError(f"BCI initialization failed: {e}")
     
     def _initialize_device(self) -> None:
         """Initialize the BCI device connection."""
@@ -136,9 +209,8 @@ class BCIBridge:
                     metadata={"device": self.device.value, "paradigm": self.paradigm.value}
                 )
                 
-                self.data_buffer.append(neural_data)
-                if len(self.data_buffer) > self.buffer_size:
-                    self.data_buffer.pop(0)
+                # Add data to buffer with validation and monitoring
+                self._add_to_buffer_safe(neural_data)
                 
                 yield neural_data
                 
@@ -260,23 +332,151 @@ class BCIBridge:
             window_ms: Window length in milliseconds
             
         Returns:
-            Neural data for the specified window
+            Neural data for the specified window, shape (channels, samples)
         """
         window_samples = int(window_ms * self.sampling_rate / 1000)
         
-        if len(self.data_buffer) < window_samples:
-            return np.array([])
+        if len(self.data_buffer) == 0:
+            # Return empty array with proper dimensions
+            return np.empty((self.channels, 0))
         
-        recent_data = self.data_buffer[-window_samples:]
-        return np.concatenate([data.data for data in recent_data], axis=1)
+        if len(self.data_buffer) < window_samples:
+            # Use all available data if insufficient samples
+            recent_data = self.data_buffer
+        else:
+            recent_data = self.data_buffer[-window_samples:]
+        
+        try:
+            if len(recent_data) == 0:
+                return np.empty((self.channels, 0))
+            return np.concatenate([data.data for data in recent_data], axis=1)
+        except Exception as e:
+            self.logger.error(f"Error reading window data: {e}")
+            return np.empty((self.channels, 0))
     
     def get_buffer(self, samples: int) -> np.ndarray:
         """Get the most recent samples from the buffer."""
-        if len(self.data_buffer) < samples:
-            return np.array([])
+        if len(self.data_buffer) == 0:
+            return np.empty((self.channels, 0))
         
-        recent_data = self.data_buffer[-samples:]
-        return np.concatenate([data.data for data in recent_data], axis=1)
+        if len(self.data_buffer) < samples:
+            # Use all available data if insufficient samples
+            recent_data = self.data_buffer
+        else:
+            recent_data = self.data_buffer[-samples:]
+        
+        try:
+            if len(recent_data) == 0:
+                return np.empty((self.channels, 0))
+            return np.concatenate([data.data for data in recent_data], axis=1)
+        except Exception as e:
+            self.logger.error(f"Error getting buffer data: {e}")
+            return np.empty((self.channels, 0))
+    
+    def _add_to_buffer_safe(self, neural_data: NeuralData) -> None:
+        """Safely add neural data to buffer with validation and monitoring."""
+        processing_start = time.time()
+        
+        try:
+            if not isinstance(neural_data, NeuralData):
+                raise ValidationError(f"Expected NeuralData, got {type(neural_data)}")
+            
+            # Security validation of neural data
+            if _SECURITY_AVAILABLE:
+                self.validator.validate_neural_data(
+                    neural_data.data, 
+                    self.channels, 
+                    self.sampling_rate
+                )
+                self.validator.validate_timestamp(neural_data.timestamp)
+            
+            # Validate data integrity
+            if neural_data.data.shape[0] != self.channels:
+                error_msg = f"Channel mismatch: expected {self.channels}, got {neural_data.data.shape[0]}"
+                self.logger.warning(error_msg)
+                if _SECURITY_AVAILABLE:
+                    security_logger.log_validation_failure(
+                        input_type="neural_data",
+                        error_message=error_msg,
+                        source="buffer_add"
+                    )
+                return
+            
+            self.data_buffer.append(neural_data)
+            if len(self.data_buffer) > self.buffer_size:
+                self.data_buffer.pop(0)
+            
+            self._total_samples_processed += neural_data.data.shape[1]
+            
+            # Track processing time
+            processing_time = time.time() - processing_start
+            self._processing_times.append(processing_time)
+            if len(self._processing_times) > 1000:  # Keep only recent times
+                self._processing_times.pop(0)
+            
+            # Periodic health checks
+            if time.time() - self._last_health_check > 30.0:  # Every 30 seconds
+                self._perform_health_check()
+                
+        except ValidationError as e:
+            self._error_count += 1
+            self.logger.error(f"Neural data validation failed: {e}")
+            if _SECURITY_AVAILABLE:
+                security_logger.log_validation_failure(
+                    input_type="neural_data",
+                    error_message=str(e),
+                    source="buffer_validation"
+                )
+        except Exception as e:
+            self._error_count += 1
+            self.logger.error(f"Error adding data to buffer: {e}")
+            if _SECURITY_AVAILABLE:
+                security_logger.log_system_error(
+                    component="bci_bridge",
+                    error_type="buffer_error",
+                    error_message=str(e)
+                )
+                
+            if self._error_count > 100:  # Too many errors - system unstable
+                if _SECURITY_AVAILABLE:
+                    security_logger.log_suspicious_activity(
+                        activity_type="system_instability",
+                        details={"error_count": self._error_count, "recent_error": str(e)},
+                        risk_score=9
+                    )
+                raise RuntimeError(f"BCI system unstable: {self._error_count} errors")
+    
+    def _perform_health_check(self) -> Dict[str, Any]:
+        """Perform system health check and return status."""
+        try:
+            self._last_health_check = time.time()
+            
+            # Calculate performance metrics
+            avg_processing_time = np.mean(self._processing_times[-100:]) if self._processing_times else 0.0
+            buffer_utilization = len(self.data_buffer) / self.buffer_size * 100
+            
+            health_status = {
+                "status": "healthy" if self._error_count < 10 else "degraded",
+                "total_samples": self._total_samples_processed,
+                "buffer_utilization_pct": round(buffer_utilization, 1),
+                "error_count": self._error_count,
+                "avg_processing_ms": round(avg_processing_time * 1000, 2),
+                "is_streaming": self.is_streaming,
+                "timestamp": time.time()
+            }
+            
+            if health_status["status"] == "degraded":
+                self.logger.warning(f"BCI health degraded: {health_status}")
+            
+            return health_status
+            
+        except Exception as e:
+            self.logger.error(f"Health check failed: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get current system health status."""
+        return self._perform_health_check()
     
     def calibrate(self, calibration_data: Optional[np.ndarray] = None) -> None:
         """Calibrate the decoder with user-specific data."""

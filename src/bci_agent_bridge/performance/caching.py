@@ -53,6 +53,15 @@ class CacheEntry:
         self.access_count += 1
 
 
+@dataclass
+class ValidationResult:
+    """Result of cache validation operation."""
+    is_valid: bool
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    stats: Dict[str, Any] = field(default_factory=dict)
+
+
 class CacheStats:
     """Statistics for cache performance monitoring."""
     
