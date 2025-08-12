@@ -1,0 +1,53 @@
+{
+  "timestamp": 1755034176.750453,
+  "benchmarks": {
+    "neural_processing": {
+      "latencies_ms": [
+        3.523204999964946,
+        2.980167000032452,
+        3.2202270000425415,
+        3.471913999987919
+      ],
+      "avg_latency_ms": 3.2988782500069647,
+      "max_latency_ms": 3.523204999964946,
+      "min_latency_ms": 2.980167000032452
+    },
+    "streaming": {
+      "throughput_samples_per_sec": 86.4671396256379,
+      "total_samples": 433,
+      "duration_sec": 5.007682709000051
+    },
+    "memory_usage": {
+      "baseline_mb": 342.375,
+      "final_mb": 343.40234375,
+      "increase_mb": 1.02734375,
+      "max_mb": 343.14453125,
+      "samples": [
+        342.375,
+        342.375,
+        342.375,
+        342.62890625,
+        342.88671875,
+        343.14453125
+      ]
+    },
+    "concurrent_processing": {
+      "operations_per_sec": 342.38715329439947,
+      "avg_latency_ms": 2.826857965002887,
+      "total_operations": 200,
+      "duration_sec": 0.5841340659999332
+    },
+    "privacy_overhead": {
+      "no_privacy_sec": 0.006667882999977337,
+      "with_privacy_sec": 0.2412668039999062,
+      "overhead_percent": 3518.3418935324185
+    }
+  },
+  "system_info": {
+    "cpu_count": 2,
+    "memory_total_gb": 3.85,
+    "memory_available_gb": 3.26
+  },
+  "performance_score": 70,
+  "max_score": 100
+}

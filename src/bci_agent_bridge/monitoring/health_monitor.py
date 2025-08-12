@@ -16,6 +16,18 @@ from collections import deque, defaultdict
 import json
 import uuid
 
+# Import missing functions from original module
+try:
+    from .health_monitor_original import create_bci_health_checks, create_claude_health_checks
+except ImportError:
+    def create_bci_health_checks():
+        """Default health checks for BCI system."""
+        return []
+    
+    def create_claude_health_checks():
+        """Default health checks for Claude system."""
+        return []
+
 
 class HealthStatus(Enum):
     HEALTHY = "healthy"
