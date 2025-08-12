@@ -18,6 +18,14 @@ import uuid
 import statistics
 from concurrent.futures import ThreadPoolExecutor
 
+# Import missing functions from original module
+try:
+    from .alert_manager_original import create_bci_alert_rules
+except ImportError:
+    def create_bci_alert_rules():
+        """Default alert rules for BCI system."""
+        return []
+
 
 class AlertSeverity(Enum):
     INFO = "info"

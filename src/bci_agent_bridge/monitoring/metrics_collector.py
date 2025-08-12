@@ -522,8 +522,12 @@ class MetricsCollector:
 
     def _start_cleanup_task(self):
         """Start background cleanup task."""
-        if not self._cleanup_task or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        try:
+            if not self._cleanup_task or self._cleanup_task.done():
+                self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        except RuntimeError:
+            # No event loop running, cleanup will be handled manually
+            self._cleanup_task = None
 
     async def _cleanup_loop(self):
         """Background cleanup task."""
