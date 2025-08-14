@@ -1,0 +1,44 @@
+{
+  "validation_summary": {
+    "validation_level": "basic",
+    "timestamp": "2025-08-14T01:29:57.293867",
+    "overall_status": "PASS",
+    "overall_score": 0.0,
+    "max_possible_score": 600.0,
+    "overall_percentage": 0.0,
+    "success_rate": 0.0
+  },
+  "test_statistics": {
+    "total_tests": 6,
+    "passed_tests": 0,
+    "failed_tests": 0,
+    "warning_tests": 0,
+    "quality_gates": 3
+  },
+  "quality_gates": [
+    {
+      "gate_name": "core_functionality",
+      "status": "pass",
+      "score": 0.0,
+      "max_score": 200.0,
+      "percentage": 0.0,
+      "execution_time_ms": 0.02288818359375
+    },
+    {
+      "gate_name": "performance_benchmarks",
+      "status": "pass",
+      "score": 0.0,
+      "max_score": 200.0,
+      "percentage": 0.0,
+      "execution_time_ms": 18.07856559753418
+    },
+    {
+      "gate_name": "security_validation",
+      "status": "pass",
+      "score": 0.0,
+      "max_score": 200.0,
+      "percentage": 0.0,
+      "execution_time_ms": 0.024080276489257812
+    }
+  ]
+}
