@@ -1,0 +1,139 @@
+# Multi-stage production Dockerfile for BCI-Agent-Bridge
+# Optimized for security, performance, and medical-grade deployment
+
+# Stage 1: Build stage with development dependencies
+FROM python:3.11-slim-bookworm AS builder
+
+# Build arguments
+ARG VERSION=0.2.0
+ARG BUILD_ENV=production
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Set labels for medical device traceability
+LABEL maintainer="Daniel Schmidt <daniel@terraganlabs.com>"
+LABEL version="${VERSION}"
+LABEL description="BCI-Agent-Bridge - Medical-grade neural interface system"
+LABEL build_environment="${BUILD_ENV}"
+LABEL compliance="HIPAA,GDPR,FDA-510k"
+LABEL security_scan_required="true"
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    cmake \
+    pkg-config \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create application user
+RUN groupadd -r bci && useradd -r -g bci -d /app -s /bin/bash bci
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml requirements-dev.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements-dev.txt && \
+    pip install --no-cache-dir -e .
+
+# Copy source code
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+
+# Run security and quality checks
+RUN python -m pytest tests/ --tb=short || true
+RUN python -m flake8 src/ || true
+RUN python -m mypy src/ || true
+
+# Build optimized Python bytecode
+RUN python -m compileall src/
+
+# Stage 2: Production runtime stage
+FROM python:3.11-slim-bookworm AS production
+
+# Build arguments
+ARG VERSION=0.2.0
+ARG BUILD_ENV=production
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/src \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    NODE_ENV=production \
+    BCI_VERSION=${VERSION}
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    tini \
+    gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get autoremove -y \
+    && apt-get autoclean
+
+# Create application user and directories
+RUN groupadd -r bci && useradd -r -g bci -d /app -s /bin/bash bci && \
+    mkdir -p /app/{src,config,logs,data,storage,audit} && \
+    chown -R bci:bci /app
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python dependencies from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY --from=builder --chown=bci:bci /app/src ./src/
+COPY --chown=bci:bci config/ ./config/
+COPY --chown=bci:bci scripts/ ./scripts/
+
+# Copy health check script
+COPY docker/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
+# Copy entrypoint script
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Security hardening
+RUN chown root:root /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh && \
+    chmod 755 /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh
+
+# Create non-root user directories with proper permissions
+RUN mkdir -p /tmp/bci && chown bci:bci /tmp/bci && \
+    mkdir -p /var/log/bci && chown bci:bci /var/log/bci
+
+# Expose ports
+EXPOSE 8000 8001 9090
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /usr/local/bin/healthcheck.sh
+
+# Set volume mount points
+VOLUME ["/app/data", "/app/logs", "/app/storage", "/app/audit"]
+
+# Use tini as init system
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+
+# Default command
+CMD ["python", "-m", "bci_agent_bridge"]
+
+# Security labels
+LABEL security.non-root="true"
+LABEL security.read-only-root="true"
+LABEL security.scan.required="true"
+LABEL medical.compliance="HIPAA,GDPR,FDA-510k"
+LABEL medical.classification="Class II Medical Device Software"

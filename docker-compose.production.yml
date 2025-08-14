@@ -1,0 +1,422 @@
+version: '3.8'
+
+services:
+  bci-bridge:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.production
+      args:
+        - VERSION=${BCI_VERSION:-0.2.0}
+        - BUILD_ENV=production
+    image: bci-agent-bridge:${BCI_VERSION:-0.2.0}
+    container_name: bci-bridge-prod
+    restart: unless-stopped
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    
+    # Environment configuration
+    environment:
+      - NODE_ENV=production
+      - BCI_MODE=production
+      - PRIVACY_MODE=medical
+      - ENABLE_HEALTH_MONITORING=true
+      - ENABLE_AUTO_RECOVERY=true
+      - ENABLE_DISTRIBUTED_PROCESSING=true
+      - LOG_LEVEL=info
+      - METRICS_ENABLED=true
+      - COMPLIANCE_MODE=clinical
+      
+      # Database configuration
+      - DATABASE_URL=postgresql://bci_user:${DB_PASSWORD}@postgres:5432/bci_bridge_prod
+      - REDIS_URL=redis://redis:6379/0
+      
+      # Security configuration
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - API_KEY=${API_KEY}
+      
+      # Claude AI configuration
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_MODEL=claude-3-sonnet-20240229
+      - CLAUDE_SAFETY_MODE=medical
+      
+      # Monitoring configuration
+      - PROMETHEUS_ENABLED=true
+      - GRAFANA_ENABLED=true
+      - JAEGER_ENABLED=true
+      
+      # Compliance configuration
+      - HIPAA_ENABLED=true
+      - GDPR_ENABLED=true
+      - AUDIT_LOGGING=true
+      - DATA_RETENTION_DAYS=2555  # 7 years for medical
+      
+    # Port mapping
+    ports:
+      - "8000:8000"   # Main API
+      - "8001:8001"   # Health/metrics
+      - "9090:9090"   # Prometheus metrics
+    
+    # Volume mounts
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - bci_storage:/app/storage
+      - audit_logs:/app/audit
+      
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Dependencies
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    # Network configuration
+    networks:
+      - bci_network
+      - monitoring_network
+    
+    # Security configuration
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/tmp
+    user: "1000:1000"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: bci-postgres-prod
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    
+    environment:
+      - POSTGRES_DB=bci_bridge_prod
+      - POSTGRES_USER=bci_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bci_user -d bci_bridge_prod"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    networks:
+      - bci_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: bci-redis-prod
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    
+    command: redis-server /etc/redis/redis.conf
+    
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/etc/redis/redis.conf:ro
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    networks:
+      - bci_network
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: bci-nginx-prod
+    restart: unless-stopped
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    
+    depends_on:
+      - bci-bridge
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    networks:
+      - bci_network
+      - external_network
+
+  # Monitoring stack
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: bci-prometheus-prod
+    restart: unless-stopped
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=90d'
+      - '--web.enable-lifecycle'
+      - '--web.external-url=https://prometheus.bci.local'
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/clinical_rules.yml:/etc/prometheus/clinical_rules.yml:ro
+      - prometheus_data:/prometheus
+    
+    ports:
+      - "9090:9090"
+    
+    networks:
+      - monitoring_network
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: bci-grafana-prod
+    restart: unless-stopped
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_ROOT_URL=https://grafana.bci.local
+      - GF_DATABASE_TYPE=postgres
+      - GF_DATABASE_HOST=postgres:5432
+      - GF_DATABASE_NAME=grafana
+      - GF_DATABASE_USER=bci_user
+      - GF_DATABASE_PASSWORD=${DB_PASSWORD}
+    
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    
+    ports:
+      - "3000:3000"
+    
+    depends_on:
+      - postgres
+      - prometheus
+    
+    networks:
+      - monitoring_network
+      - bci_network
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    container_name: bci-jaeger-prod
+    restart: unless-stopped
+    
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=badger
+      - BADGER_EPHEMERAL=false
+      - BADGER_DIRECTORY_VALUE=/badger/data
+      - BADGER_DIRECTORY_KEY=/badger/key
+    
+    volumes:
+      - jaeger_data:/badger
+    
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger HTTP
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    
+    networks:
+      - monitoring_network
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+  # Backup service
+  backup:
+    image: postgres:15-alpine
+    container_name: bci-backup-prod
+    restart: "no"
+    
+    environment:
+      - PGPASSWORD=${DB_PASSWORD}
+    
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    
+    entrypoint: ["/backup.sh"]
+    
+    depends_on:
+      - postgres
+    
+    networks:
+      - bci_network
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/data/postgres
+      o: bind
+  
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/data/redis
+      o: bind
+  
+  bci_storage:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/storage
+      o: bind
+  
+  audit_logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/audit
+      o: bind
+  
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/monitoring/prometheus
+      o: bind
+  
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/monitoring/grafana
+      o: bind
+  
+  jaeger_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/bci/monitoring/jaeger
+      o: bind
+
+networks:
+  bci_network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  
+  monitoring_network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  
+  external_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+# Configuration for production secrets
+secrets:
+  db_password:
+    external: true
+  jwt_secret:
+    external: true
+  encryption_key:
+    external: true
+  api_key:
+    external: true
+  claude_api_key:
+    external: true
+  grafana_password:
+    external: true
