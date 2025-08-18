@@ -1,52 +1,52 @@
 {
-  "timestamp": 1755034176.750453,
+  "timestamp": 1755473742.1016533,
   "benchmarks": {
     "neural_processing": {
       "latencies_ms": [
-        3.523204999964946,
-        2.980167000032452,
-        3.2202270000425415,
-        3.471913999987919
+        5.3002340000603,
+        3.083236000065881,
+        3.127919999997175,
+        3.484036000145352
       ],
-      "avg_latency_ms": 3.2988782500069647,
-      "max_latency_ms": 3.523204999964946,
-      "min_latency_ms": 2.980167000032452
+      "avg_latency_ms": 3.748856500067177,
+      "max_latency_ms": 5.3002340000603,
+      "min_latency_ms": 3.083236000065881
     },
     "streaming": {
-      "throughput_samples_per_sec": 86.4671396256379,
-      "total_samples": 433,
-      "duration_sec": 5.007682709000051
+      "throughput_samples_per_sec": 92.16154553983047,
+      "total_samples": 461,
+      "duration_sec": 5.0020862529997885
     },
     "memory_usage": {
-      "baseline_mb": 342.375,
-      "final_mb": 343.40234375,
+      "baseline_mb": 176.9375,
+      "final_mb": 177.96484375,
       "increase_mb": 1.02734375,
-      "max_mb": 343.14453125,
+      "max_mb": 177.70703125,
       "samples": [
-        342.375,
-        342.375,
-        342.375,
-        342.62890625,
-        342.88671875,
-        343.14453125
+        176.9375,
+        176.9375,
+        176.9375,
+        177.19140625,
+        177.44921875,
+        177.70703125
       ]
     },
     "concurrent_processing": {
-      "operations_per_sec": 342.38715329439947,
-      "avg_latency_ms": 2.826857965002887,
+      "operations_per_sec": 246.5237008835137,
+      "avg_latency_ms": 3.9441727650000757,
       "total_operations": 200,
-      "duration_sec": 0.5841340659999332
+      "duration_sec": 0.8112810220000028
     },
     "privacy_overhead": {
-      "no_privacy_sec": 0.006667882999977337,
-      "with_privacy_sec": 0.2412668039999062,
-      "overhead_percent": 3518.3418935324185
+      "no_privacy_sec": 0.007434666999870387,
+      "with_privacy_sec": 0.3117027399998733,
+      "overhead_percent": 4092.5581872773505
     }
   },
   "system_info": {
     "cpu_count": 2,
     "memory_total_gb": 3.85,
-    "memory_available_gb": 3.26
+    "memory_available_gb": 3.28
   },
   "performance_score": 70,
   "max_score": 100
