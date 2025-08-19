@@ -1,0 +1,472 @@
+version: '3.8'
+
+# Generation 5 BCI-Agent-Bridge Production Docker Compose
+# Complete deployment stack for quantum-neuromorphic-federated BCI system
+
+services:
+  # Generation 5 BCI Main Application
+  bci-generation5:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generation5
+      args:
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        - VCS_REF=${VCS_REF:-$(git rev-parse --short HEAD)}
+        - VERSION=${VERSION:-5.0.0}
+    image: terraganlabs/bci-agent-bridge:generation5-latest
+    container_name: bci-generation5-main
+    restart: unless-stopped
+    
+    environment:
+      # System Configuration
+      - BCI_MODE=integrated
+      - BCI_VERSION=5.0.0
+      - BCI_DEPLOYMENT_REGION=${DEPLOYMENT_REGION:-us-east-1}
+      - BCI_LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONPATH=/app/src
+      
+      # Generation 5 Quantum Configuration
+      - BCI_QUANTUM_QUBITS=${QUANTUM_QUBITS:-8}
+      - BCI_QUANTUM_BACKEND=${QUANTUM_BACKEND:-simulator}
+      - BCI_QUANTUM_COHERENCE_TIME=${QUANTUM_COHERENCE_TIME:-10.0}
+      
+      # Federated Learning Configuration
+      - BCI_FEDERATED_CLIENTS=${FEDERATED_CLIENTS:-10}
+      - BCI_FEDERATED_ROUNDS=${FEDERATED_ROUNDS:-50}
+      - BCI_ENABLE_PRIVACY=${ENABLE_PRIVACY:-true}
+      - BCI_PRIVACY_BUDGET=${PRIVACY_BUDGET:-1.0}
+      
+      # Neuromorphic Processing Configuration
+      - BCI_NEUROMORPHIC_NEURONS=${NEUROMORPHIC_NEURONS:-1024}
+      - BCI_POWER_BUDGET=${POWER_BUDGET:-1.0}
+      - BCI_SAMPLING_RATE=${SAMPLING_RATE:-250}
+      - BCI_SPIKE_ENCODING=${SPIKE_ENCODING:-quantum_spike_coding}
+      
+      # Causal Inference Configuration
+      - BCI_CAUSAL_WINDOW_MS=${CAUSAL_WINDOW_MS:-2000}
+      - BCI_CAUSAL_METHODS=quantum_causal,granger,transfer_entropy
+      
+      # Security and Compliance
+      - PRIVACY_MODE=medical
+      - HIPAA_ENABLED=true
+      - ENABLE_TLS=true
+      - AUDIT_LOGGING=true
+      - COMPLIANCE_MODE=clinical
+      - DATA_RETENTION_DAYS=2555  # 7 years for medical compliance
+      
+      # Database Configuration
+      - DATABASE_URL=postgresql://bci_user:${DB_PASSWORD}@postgres:5432/bci_generation5
+      
+      # API Keys and Secrets
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      
+      # Monitoring and Telemetry
+      - PROMETHEUS_ENABLED=true
+      - JAEGER_ENABLED=true
+      - OPENTELEMETRY_ENABLED=true
+      
+    ports:
+      - "8000:8000"  # Main API
+      - "8001:8001"  # Metrics
+      - "8002:8002"  # Admin
+    
+    volumes:
+      - generation5_data:/app/data
+      - generation5_logs:/app/logs
+      - generation5_models:/app/models
+      - generation5_audit:/app/audit
+      - ./config/ssl:/app/config/ssl:ro
+      - ./config/generation5:/app/config:ro
+    
+    networks:
+      - bci-network
+      - monitoring-network
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "./healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bci-generation5.rule=Host(`bci-api.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.bci-generation5.tls=true"
+      - "traefik.http.services.bci-generation5.loadbalancer.server.port=8000"
+
+  # PostgreSQL Database with Medical-Grade Security
+  postgres:
+    image: postgres:15-alpine
+    container_name: bci-postgres
+    restart: unless-stopped
+    
+    environment:
+      - POSTGRES_DB=bci_generation5
+      - POSTGRES_USER=bci_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 --auth-local=scram-sha-256
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+      - postgres_backups:/backups
+    
+    networks:
+      - bci-network
+    
+    ports:
+      - "5432:5432"
+    
+    command: [
+      "postgres",
+      "-c", "log_statement=all",
+      "-c", "log_destination=stderr",
+      "-c", "logging_collector=on",
+      "-c", "log_directory=/var/log/postgresql",
+      "-c", "log_filename=postgresql-%Y-%m-%d_%H%M%S.log",
+      "-c", "log_rotation_age=1d",
+      "-c", "log_rotation_size=100MB",
+      "-c", "ssl=on",
+      "-c", "ssl_cert_file=/etc/ssl/certs/server.crt",
+      "-c", "ssl_key_file=/etc/ssl/private/server.key",
+      "-c", "max_connections=200",
+      "-c", "shared_buffers=256MB",
+      "-c", "effective_cache_size=1GB",
+      "-c", "work_mem=4MB",
+      "-c", "maintenance_work_mem=64MB"
+    ]
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bci_user -d bci_generation5"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+  # Redis for Caching and Real-time Data
+  redis:
+    image: redis:7-alpine
+    container_name: bci-redis
+    restart: unless-stopped
+    
+    command: [
+      "redis-server",
+      "--appendonly", "yes",
+      "--requirepass", "${REDIS_PASSWORD}",
+      "--maxmemory", "512mb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--save", "900", "1",
+      "--save", "300", "10",
+      "--save", "60", "10000"
+    ]
+    
+    volumes:
+      - redis_data:/data
+    
+    networks:
+      - bci-network
+    
+    ports:
+      - "6379:6379"
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: bci-prometheus
+    restart: unless-stopped
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    
+    networks:
+      - monitoring-network
+    
+    ports:
+      - "9090:9090"
+    
+    depends_on:
+      - bci-generation5
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: bci-grafana
+    restart: unless-stopped
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel
+    
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    
+    networks:
+      - monitoring-network
+    
+    ports:
+      - "3000:3000"
+    
+    depends_on:
+      - prometheus
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+  # Jaeger Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: bci-jaeger
+    restart: unless-stopped
+    
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    
+    volumes:
+      - jaeger_data:/tmp
+    
+    networks:
+      - monitoring-network
+    
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "14250:14250"  # gRPC collector
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # Nginx Reverse Proxy with TLS
+  nginx:
+    image: nginx:alpine
+    container_name: bci-nginx
+    restart: unless-stopped
+    
+    volumes:
+      - ./config/nginx/generation5.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    
+    networks:
+      - bci-network
+      - monitoring-network
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    depends_on:
+      - bci-generation5
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Quantum Computing Simulator (if using local quantum backend)
+  quantum-simulator:
+    image: terraganlabs/quantum-simulator:latest
+    container_name: bci-quantum-sim
+    restart: unless-stopped
+    profiles:
+      - quantum
+    
+    environment:
+      - QISKIT_BACKEND=aer_simulator
+      - MAX_QUBITS=16
+      - NOISE_MODEL=${QUANTUM_NOISE_MODEL:-false}
+    
+    volumes:
+      - quantum_data:/app/data
+    
+    networks:
+      - bci-network
+    
+    ports:
+      - "8003:8000"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  # Log Aggregation
+  fluentd:
+    image: fluent/fluentd:v1.16-debian
+    container_name: bci-fluentd
+    restart: unless-stopped
+    profiles:
+      - logging
+    
+    volumes:
+      - ./config/fluentd:/fluentd/etc:ro
+      - generation5_logs:/var/log/bci:ro
+      - fluentd_data:/var/log/fluentd
+    
+    networks:
+      - monitoring-network
+    
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+# Networks
+networks:
+  bci-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# Volumes
+volumes:
+  generation5_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}
+  
+  generation5_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOGS_PATH:-./logs}
+  
+  generation5_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MODELS_PATH:-./models}
+  
+  generation5_audit:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${AUDIT_PATH:-./audit}
+  
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_PATH:-./data/postgres}
+  
+  postgres_backups:
+    driver: local
+  
+  redis_data:
+    driver: local
+  
+  prometheus_data:
+    driver: local
+  
+  grafana_data:
+    driver: local
+  
+  jaeger_data:
+    driver: local
+  
+  quantum_data:
+    driver: local
+  
+  fluentd_data:
+    driver: local
+
+# Configuration for production deployment
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "100m"
+    max-file: "5"
+
+# Default environment overrides
+x-environment: &default-environment
+  TZ: UTC
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8

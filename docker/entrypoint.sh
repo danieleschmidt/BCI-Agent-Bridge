@@ -1,8 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# BCI-Agent-Bridge Production Entrypoint
+# Generation 5 BCI-Agent-Bridge Production Entrypoint
 # Medical-grade startup script with comprehensive validation and safety checks
+# Enhanced for quantum-neuromorphic-federated systems
 
 # Color codes for output
 RED='\033[0;31m'

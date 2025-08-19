@@ -1,0 +1,92 @@
+# Generation 5 BCI-Agent-Bridge Production Dockerfile
+# Multi-stage build for quantum-neuromorphic-federated BCI system
+
+# Stage 1: Base Python environment with optimization
+FROM python:3.11-slim as base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    cmake \
+    libffi-dev \
+    libssl-dev \
+    libblas-dev \
+    liblapack-dev \
+    gfortran \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r bci && useradd -r -g bci -d /app -s /sbin/nologin -c "BCI User" bci
+
+# Stage 2: Build dependencies
+FROM base as builder
+
+WORKDIR /build
+
+# Copy requirements
+COPY requirements-dev.txt ./
+COPY pyproject.toml ./
+
+# Install build dependencies
+RUN pip install --upgrade pip setuptools wheel
+
+# Install Python dependencies
+RUN pip install --user -r requirements-dev.txt
+
+# Stage 3: Production runtime
+FROM base as runtime
+
+# Copy Python packages from builder stage
+COPY --from=builder /root/.local /root/.local
+
+# Create application directory
+WORKDIR /app
+
+# Copy application code
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY *.py ./
+COPY *.md ./
+COPY docker/entrypoint.sh ./entrypoint.sh
+COPY docker/healthcheck.sh ./healthcheck.sh
+
+# Make scripts executable
+RUN chmod +x entrypoint.sh healthcheck.sh
+
+# Create directories for data and logs
+RUN mkdir -p /app/data /app/logs /app/models /app/config && \
+    chown -R bci:bci /app
+
+# Set up health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD ./healthcheck.sh
+
+# Switch to non-root user
+USER bci
+
+# Expose ports
+EXPOSE 8000 8001 8002
+
+# Set entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
+
+# Default command for Generation 5 unified system
+CMD ["python", "-m", "src.bci_agent_bridge.research.generation5_unified_system"]
+
+# Metadata
+LABEL maintainer="Terragon Labs <ai@terraganlabs.com>" \
+      version="5.0.0" \
+      description="Generation 5 BCI-Agent-Bridge: Quantum-Neuromorphic-Federated BCI System" \
+      org.opencontainers.image.title="BCI-Agent-Bridge Generation 5" \
+      org.opencontainers.image.description="Revolutionary brain-computer interface with quantum enhancement" \
+      org.opencontainers.image.version="5.0.0" \
+      org.opencontainers.image.vendor="Terragon Labs" \
+      org.opencontainers.image.licenses="MIT"
