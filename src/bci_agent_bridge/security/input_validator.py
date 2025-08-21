@@ -182,9 +182,12 @@ class InputValidator:
         if len(api_key) > 1000:
             raise ValidationError("API key too long (maximum 1000 characters)")
         
-        # Check for common weak patterns
-        if api_key.lower() in ['test', 'demo', 'example', '123456', 'password']:
-            raise ValidationError("Weak API key detected")
+        # Check for common weak patterns (check if any weak pattern is contained in the key)
+        weak_patterns = ['test', 'demo', 'example', '123456', 'password']
+        api_key_lower = api_key.lower()
+        for pattern in weak_patterns:
+            if pattern in api_key_lower:
+                raise ValidationError("Weak API key detected")
         
         return api_key
     

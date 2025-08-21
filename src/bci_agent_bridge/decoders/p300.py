@@ -152,15 +152,15 @@ class P300Decoder(BaseDecoder):
         Returns:
             Prediction: 1 for target (P300), 0 for non-target
         """
+        if features.size == 0:
+            self.last_confidence = 0.0
+            return 0
+        
         if not self.is_calibrated:
             self.logger.warning("Decoder not calibrated, returning random prediction")
             prediction = np.random.choice([0, 1])
             self.last_confidence = 0.5
             return prediction
-        
-        if features.size == 0:
-            self.last_confidence = 0.0
-            return 0
         
         try:
             # Reshape for sklearn
