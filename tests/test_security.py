@@ -78,7 +78,7 @@ class TestInputValidator:
     def test_api_key_validation_success(self):
         """Test successful API key validation."""
         validator = InputValidator(SecurityPolicy.STANDARD)
-        api_key = "sk-1234567890abcdef1234567890abcdef"
+        api_key = "sk-97e4b2c1a6f8d5e9437b8c2f1a6e9d4b"
         
         validated_key = validator.validate_api_key(api_key)
         assert validated_key == api_key
@@ -278,21 +278,37 @@ class TestSecurityAuditLogger:
     
     def test_threat_pattern_analysis(self):
         """Test threat pattern analysis."""
-        logger = SecurityAuditLogger(log_file="/tmp/test_threats.log")
+        import tempfile
+        import os
         
-        # Simulate brute force attack
-        for i in range(6):
-            logger.log_authentication_attempt(
-                f"user{i}", False, "192.168.1.100"
-            )
+        # Create unique temporary log file
+        fd, temp_log = tempfile.mkstemp(suffix='.log', prefix='test_threats_')
+        os.close(fd)
         
-        # Analyze patterns
-        analysis = logger.analyze_threat_patterns()
+        # Remove file to start fresh
+        if os.path.exists(temp_log):
+            os.remove(temp_log)
+            
+        logger = SecurityAuditLogger(log_file=temp_log)
         
-        assert isinstance(analysis, dict)
-        assert "failed_auth_attempts" in analysis
-        assert "threat_indicators" in analysis
-        assert analysis["failed_auth_attempts"] == 6
+        try:
+            # Simulate brute force attack
+            for i in range(6):
+                logger.log_authentication_attempt(
+                    f"user{i}", False, "192.168.1.100"
+                )
+            
+            # Analyze patterns
+            analysis = logger.analyze_threat_patterns()
+            
+            assert isinstance(analysis, dict)
+            assert "failed_auth_attempts" in analysis
+            assert "threat_indicators" in analysis
+            assert analysis["failed_auth_attempts"] == 6
+        finally:
+            # Clean up
+            if os.path.exists(temp_log):
+                os.remove(temp_log)
         
         # Should detect brute force pattern
         indicators = analysis["threat_indicators"]
