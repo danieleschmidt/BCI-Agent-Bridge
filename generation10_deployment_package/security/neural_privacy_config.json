@@ -1,0 +1,26 @@
+{
+  "encryption": {
+    "algorithm": "AES-256-GCM",
+    "key_rotation_hours": 24,
+    "at_rest_encryption": true,
+    "in_transit_encryption": true
+  },
+  "anonymization": {
+    "enabled": true,
+    "method": "differential_privacy",
+    "epsilon": 1.0,
+    "delta": 1e-05
+  },
+  "access_control": {
+    "rbac_enabled": true,
+    "mfa_required": true,
+    "audit_logging": true,
+    "session_timeout_minutes": 30
+  },
+  "compliance": {
+    "hipaa_compliant": true,
+    "gdpr_compliant": true,
+    "data_retention_days": 90,
+    "right_to_deletion": true
+  }
+}
