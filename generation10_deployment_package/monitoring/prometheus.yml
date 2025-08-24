@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets: ['alertmanager:9093']
+
+rule_files:
+- generation10_alerts.yml
+
+scrape_configs:
+- job_name: 'generation10-consciousness'
+  static_configs:
+  - targets: ['consciousness-service:8080']
+  metrics_path: '/metrics'
+  scrape_interval: 5s
+
+- job_name: 'generation10-performance'
+  static_configs:
+  - targets: ['performance-service:8081']
+  metrics_path: '/metrics'
+  scrape_interval: 5s
+
+- job_name: 'generation10-symbiosis'
+  static_configs:
+  - targets: ['symbiosis-service:8082']
+  metrics_path: '/metrics'
+  scrape_interval: 5s
