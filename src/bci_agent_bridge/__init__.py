@@ -1,104 +1,32 @@
 """
-BCI-Agent-Bridge: Real-time Brain-Computer Interface to LLM bridge.
+BCI-Agent-Bridge: Brain-Computer Interface to LLM Agent Bridge.
 
-This package provides tools for translating neural signals into actionable commands
-through Claude Flow agents with medical-grade privacy protection.
+Processes simulated EEG/neural signals into agent commands via:
+  - Band-pass filtering (alpha/beta/theta bands)
+  - FFT-based power spectral feature extraction
+  - Linear intent classification (FOCUS, RELAX, LEFT, RIGHT, SELECT)
+  - Differential privacy on features
+  - Agent command mapping
 
-Enhanced with state-of-the-art research capabilities:
-- Transformer-based neural decoders for superior accuracy
-- Hybrid multi-paradigm decoders for robust performance
-- Quantum-inspired optimization algorithms
-- Federated learning for privacy-preserving collaboration
+Usage:
+    from bci_agent_bridge import BCIAgentBridge
+    bridge = BCIAgentBridge()
+    results = bridge.run_demo()
 """
 
-__version__ = "1.0.0"  # Generation 4: Advanced Research & Innovation Complete
+__version__ = "2.0.0"
 __author__ = "Daniel Schmidt"
-__email__ = "daniel@terraganlabs.com"
 
-# Core components
-from .core.bridge import BCIBridge
-from .adapters.claude_flow import ClaudeFlowAdapter
-
-# Classical decoders
-from .decoders.p300 import P300Decoder
-from .decoders.motor_imagery import MotorImageryDecoder
-from .decoders.ssvep import SSVEPDecoder
-
-# Advanced research decoders (optional imports)
-try:
-    from .decoders.transformer_decoder import TransformerNeuralDecoder, TransformerConfig
-    from .decoders.hybrid_decoder import HybridMultiParadigmDecoder, HybridConfig
-    _ADVANCED_DECODERS_AVAILABLE = True
-except ImportError:
-    # Define stubs for missing decoders
-    class TransformerNeuralDecoder:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("TransformerNeuralDecoder requires PyTorch. Install with: pip install torch")
-    
-    class TransformerConfig:
-        pass
-        
-    class HybridMultiParadigmDecoder:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("HybridMultiParadigmDecoder requires PyTorch. Install with: pip install torch")
-    
-    class HybridConfig:
-        pass
-        
-    _ADVANCED_DECODERS_AVAILABLE = False
-
-# Privacy and compliance
-from .privacy.differential_privacy import DifferentialPrivacy
-
-# Clinical and monitoring
-from .clinical.trial_manager import ClinicalTrialManager
-from .monitoring.health_monitor import HealthMonitor
-from .monitoring.metrics_collector import MetricsCollector, BCIMetricsCollector
-from .monitoring.alert_manager import AlertManager
-
-# Research modules (optional imports - may require additional dependencies)
-try:
-    from .research.quantum_optimization import QuantumNeuralDecoder, create_quantum_bci_decoder
-    from .research.federated_learning import FederatedServer, FederatedClient, create_federated_bci_system
-    _RESEARCH_AVAILABLE = True
-except ImportError:
-    _RESEARCH_AVAILABLE = False
+from .eeg_processor import EEGSignalProcessor
+from .intent_classifier import IntentClassifier, Intent
+from .command_mapper import AgentCommandMapper, AgentCommand
+from .bridge import BCIAgentBridge
 
 __all__ = [
-    # Core
-    "BCIBridge",
-    "ClaudeFlowAdapter",
-    
-    # Classical decoders
-    "P300Decoder",
-    "MotorImageryDecoder",
-    "SSVEPDecoder",
-    
-    # Advanced decoders
-    "TransformerNeuralDecoder",
-    "TransformerConfig",
-    "HybridMultiParadigmDecoder", 
-    "HybridConfig",
-    
-    # Privacy
-    "DifferentialPrivacy",
-    
-    # Clinical
-    "ClinicalTrialManager",
-    
-    # Monitoring
-    "HealthMonitor",
-    "MetricsCollector",
-    "BCIMetricsCollector",
-    "AlertManager",
+    "EEGSignalProcessor",
+    "IntentClassifier",
+    "Intent",
+    "AgentCommandMapper",
+    "AgentCommand",
+    "BCIAgentBridge",
 ]
-
-# Add research components if available
-if _RESEARCH_AVAILABLE:
-    __all__.extend([
-        "QuantumNeuralDecoder",
-        "create_quantum_bci_decoder",
-        "FederatedServer",
-        "FederatedClient", 
-        "create_federated_bci_system"
-    ])
